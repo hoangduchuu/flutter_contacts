@@ -6,120 +6,122 @@ import UIKit
 @available(iOS 9.0, *)
 public enum FlutterContacts {
     // Fetches contact(s).
-    static func selectInternal(
-        store: CNContactStore,
-        id: String?,
-        withProperties: Bool,
-        withThumbnail: Bool,
-        withPhoto: Bool,
-        returnUnifiedContacts: Bool,
-        includeNotesOnIos13AndAbove: Bool,
-        externalIntent: Bool = false
-    ) -> [CNContact] {
-        var contacts: [CNContact] = []
-        var keys: [Any] = [
-            CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
-            CNContactIdentifierKey,
-        ]
-        if withProperties {
-            keys += [
-                CNContactGivenNameKey,
-                CNContactFamilyNameKey,
-                CNContactMiddleNameKey,
-                CNContactNamePrefixKey,
-                CNContactNameSuffixKey,
-                CNContactNicknameKey,
-                CNContactPhoneticGivenNameKey,
-                CNContactPhoneticFamilyNameKey,
-                CNContactPhoneticMiddleNameKey,
-                CNContactPhoneNumbersKey,
-                CNContactEmailAddressesKey,
-                CNContactPostalAddressesKey,
-                CNContactOrganizationNameKey,
-                CNContactJobTitleKey,
-                CNContactDepartmentNameKey,
-                CNContactUrlAddressesKey,
-                CNContactSocialProfilesKey,
-                CNContactInstantMessageAddressesKey,
-                CNContactBirthdayKey,
-                CNContactDatesKey,
-            ]
-            if #available(iOS 10, *) {
-                keys.append(CNContactPhoneticOrganizationNameKey)
-            }
-            // Notes need explicit entitlement from Apple starting with iOS13.
-            // https://stackoverflow.com/questions/57442114/ios-13-cncontacts-no-longer-working-to-retrieve-all-contacts
-            if #available(iOS 13, *), !includeNotesOnIos13AndAbove {} else {
-                keys.append(CNContactNoteKey)
-            }
-            if externalIntent {
-                keys.append(CNContactViewController.descriptorForRequiredKeys())
-            }
-        }
-        if withThumbnail { keys.append(CNContactThumbnailImageDataKey) }
-        if withPhoto { keys.append(CNContactImageDataKey) }
+      static func selectInternal(
+          store: CNContactStore,
+          id: String?,
+          withProperties: Bool,
+          withThumbnail: Bool,
+          withPhoto: Bool,
+          returnUnifiedContacts: Bool,
+          includeNotesOnIos13AndAbove: Bool,
+          externalIntent: Bool = false
+      ) -> [CNContact] {
+          var contacts: [CNContact] = []
+          var keys: [CNKeyDescriptor] = [
+              CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
+              CNContactIdentifierKey as CNKeyDescriptor,
+              CNContactBirthdayKey as CNKeyDescriptor  // Always include birthday key
+          ]
+          
+          if withProperties {
+              keys += [
+                  CNContactGivenNameKey as CNKeyDescriptor,
+                  CNContactFamilyNameKey as CNKeyDescriptor,
+                  CNContactMiddleNameKey as CNKeyDescriptor,
+                  CNContactNamePrefixKey as CNKeyDescriptor,
+                  CNContactNameSuffixKey as CNKeyDescriptor,
+                  CNContactNicknameKey as CNKeyDescriptor,
+                  CNContactPhoneticGivenNameKey as CNKeyDescriptor,
+                  CNContactPhoneticFamilyNameKey as CNKeyDescriptor,
+                  CNContactPhoneticMiddleNameKey as CNKeyDescriptor,
+                  CNContactPhoneNumbersKey as CNKeyDescriptor,
+                  CNContactEmailAddressesKey as CNKeyDescriptor,
+                  CNContactPostalAddressesKey as CNKeyDescriptor,
+                  CNContactOrganizationNameKey as CNKeyDescriptor,
+                  CNContactJobTitleKey as CNKeyDescriptor,
+                  CNContactDepartmentNameKey as CNKeyDescriptor,
+                  CNContactUrlAddressesKey as CNKeyDescriptor,
+                  CNContactSocialProfilesKey as CNKeyDescriptor,
+                  CNContactInstantMessageAddressesKey as CNKeyDescriptor,
+                  CNContactDatesKey as CNKeyDescriptor,
+              ]
+              if #available(iOS 10, *) {
+                  keys.append(CNContactPhoneticOrganizationNameKey as CNKeyDescriptor)
+              }
+              if #available(iOS 13, *), !includeNotesOnIos13AndAbove {} else {
+                  keys.append(CNContactNoteKey as CNKeyDescriptor)
+              }
+              if externalIntent {
+                  keys.append(CNContactViewController.descriptorForRequiredKeys())
+              }
+          }
+          if withThumbnail { keys.append(CNContactThumbnailImageDataKey as CNKeyDescriptor) }
+          if withPhoto { keys.append(CNContactImageDataKey as CNKeyDescriptor) }
 
-        let request = CNContactFetchRequest(keysToFetch: keys as! [CNKeyDescriptor])
-        request.unifyResults = returnUnifiedContacts
-        if id != nil {
-            // Request for a specific contact.
-            request.predicate = CNContact.predicateForContacts(withIdentifiers: [id!])
-        }
-        do {
-            try store.enumerateContacts(
-                with: request, usingBlock: { (contact, _) -> Void in
-                    contacts.append(contact)
-                }
-            )
-        } catch {
-            print("Unexpected error: \(error)")
-            return []
-        }
+          let request = CNContactFetchRequest(keysToFetch: keys)
+          request.unifyResults = returnUnifiedContacts
+          if let id = id {
+              request.predicate = CNContact.predicateForContacts(withIdentifiers: [id])
+          }
+          
+          do {
+              try store.enumerateContacts(with: request) { (contact, _) in
+                  contacts.append(contact)
+              }
+          } catch {
+              print("Unexpected error: \(error)")
+              return []
+          }
 
-        return contacts
-    }
+          return contacts
+      }
 
-    static func select(
-        id: String?,
-        withProperties: Bool,
-        withThumbnail: Bool,
-        withPhoto: Bool,
-        withGroups: Bool,
-        withAccounts: Bool,
-        returnUnifiedContacts: Bool,
-        includeNotesOnIos13AndAbove: Bool
-    ) -> [[String: Any?]] {
-        let store = CNContactStore()
-        let contactsInternal = selectInternal(
-            store: store,
-            id: id,
-            withProperties: withProperties,
-            withThumbnail: withThumbnail,
-            withPhoto: withPhoto,
-            returnUnifiedContacts: returnUnifiedContacts,
-            includeNotesOnIos13AndAbove: includeNotesOnIos13AndAbove
-        )
-        var contacts = contactsInternal.map { Contact(fromContact: $0) }
-        if withGroups {
-            let groups = fetchGroups(store)
-            let groupMemberships = fetchGroupMemberships(store, groups)
-            for (index, contact) in contacts.enumerated() {
-                if let contactGroups = groupMemberships[contact.id] {
-                    contacts[index].groups = contactGroups.map { Group(fromGroup: groups[$0]) }
-                }
-            }
-        }
-        if withAccounts {
-            let containers = fetchContainers(store)
-            let containerMemberships = fetchContainerMemberships(store, containers)
-            for (index, contact) in contacts.enumerated() {
-                if let contactContainers = containerMemberships[contact.id] {
-                    contacts[index].accounts = contactContainers.map { Account(fromContainer: containers[$0]) }
-                }
-            }
-        }
-        return contacts.map { $0.toMap() }
-    }
+      static func select(
+          id: String?,
+          withProperties: Bool,
+          withThumbnail: Bool,
+          withPhoto: Bool,
+          withGroups: Bool,
+          withAccounts: Bool,
+          returnUnifiedContacts: Bool,
+          includeNotesOnIos13AndAbove: Bool
+      ) -> [[String: Any?]] {
+          let store = CNContactStore()
+          let contactsInternal = selectInternal(
+              store: store,
+              id: id,
+              withProperties: withProperties,
+              withThumbnail: withThumbnail,
+              withPhoto: withPhoto,
+              returnUnifiedContacts: returnUnifiedContacts,
+              includeNotesOnIos13AndAbove: includeNotesOnIos13AndAbove
+          )
+          var contacts = contactsInternal.map { cnContact -> Contact in
+              var contact = Contact(fromContact: cnContact)
+              contact.birthday = cnContact.birthday
+              return contact
+          }
+          
+          if withGroups {
+              let groups = fetchGroups(store)
+              let groupMemberships = fetchGroupMemberships(store, groups)
+              for (index, contact) in contacts.enumerated() {
+                  if let contactGroups = groupMemberships[contact.id] {
+                      contacts[index].groups = contactGroups.map { Group(fromGroup: groups[$0]) }
+                  }
+              }
+          }
+          if withAccounts {
+              let containers = fetchContainers(store)
+              let containerMemberships = fetchContainerMemberships(store, containers)
+              for (index, contact) in contacts.enumerated() {
+                  if let contactContainers = containerMemberships[contact.id] {
+                      contacts[index].accounts = contactContainers.map { Account(fromContainer: containers[$0]) }
+                  }
+              }
+          }
+          return contacts.map { $0.toMap() }
+      }
 
     static func fetchGroups(_ store: CNContactStore) -> [CNGroup] {
         var groups: [CNGroup] = []
@@ -415,6 +417,13 @@ public enum FlutterContacts {
         if let photo = args["photo"] as? FlutterStandardTypedData {
             contact.imageData = photo.data
         }
+     // Handle birthday
+        if let birthdayString = args["birthday"] as? String {
+            let dateFormatter = ISO8601DateFormatter()
+            if let date = dateFormatter.date(from: birthdayString) {
+                contact.birthday = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            }
+        }
     }
 }
 
@@ -471,6 +480,7 @@ public class SwiftFlutterContactsPlugin: NSObject, FlutterPlugin, FlutterStreamH
                     withAccounts: withAccounts,
                     returnUnifiedContacts: returnUnifiedContacts,
                     includeNotesOnIos13AndAbove: includeNotesOnIos13AndAbove
+                    
                 )
                 result(contacts)
             }

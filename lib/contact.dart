@@ -129,6 +129,8 @@ class Contact {
   /// Whether properties (name, phones, emails, etc).
   bool propertiesFetched = true;
 
+  DateTime? birthday;
+
   Contact({
     this.id = '',
     this.displayName = '',
@@ -146,6 +148,7 @@ class Contact {
     List<Note>? notes,
     List<Account>? accounts,
     List<Group>? groups,
+    this.birthday,
   })  : name = name ?? Name(),
         phones = phones ?? <Phone>[],
         emails = emails ?? <Email>[],
@@ -195,6 +198,7 @@ class Contact {
         groups: ((json['groups'] as List?) ?? [])
             .map((x) => Group.fromJson(Map<String, dynamic>.from(x)))
             .toList(),
+    birthday: json['birthday'] != null ? DateTime.parse(json['birthday']) : null,
       );
 
   Map<String, dynamic> toJson({
@@ -218,6 +222,7 @@ class Contact {
         'notes': notes.map((x) => x.toJson()).toList(),
         'accounts': accounts.map((x) => x.toJson()).toList(),
         'groups': groups.map((x) => x.toJson()).toList(),
+        'birthday': birthday?.toIso8601String(),
       });
 
   @override
@@ -235,7 +240,8 @@ class Contact {
       _listHashCode(websites) ^
       _listHashCode(socialMedias) ^
       _listHashCode(events) ^
-      _listHashCode(notes);
+      _listHashCode(notes) ^
+      birthday.hashCode;
 
   @override
   bool operator ==(Object o) =>
@@ -253,7 +259,8 @@ class Contact {
       _listEqual(o.websites, websites) &&
       _listEqual(o.socialMedias, socialMedias) &&
       _listEqual(o.events, events) &&
-      _listEqual(o.notes, notes);
+      _listEqual(o.notes, notes) &&
+      o.birthday == birthday;
 
   @override
   String toString() =>
@@ -261,7 +268,7 @@ class Contact {
       'photo=$photo, isStarred=$isStarred, name=$name, phones=$phones, '
       'emails=$emails, addresses=$addresses, organizations=$organizations, '
       'websites=$websites, socialMedias=$socialMedias, events=$events, '
-      'notes=$notes, accounts=$accounts, groups=$groups)';
+      'notes=$notes, accounts=$accounts, groups=$groups birthday=$birthday)';
 
   /// Inserts the contact into the database.
   Future<Contact> insert() => FlutterContacts.insertContact(this);

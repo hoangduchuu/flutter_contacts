@@ -18,6 +18,7 @@ struct Contact {
     var notes: [Note] = []
     var accounts: [Account] = []
     var groups: [Group] = []
+    var birthday: DateComponents?
 
     init(fromMap m: [String: Any?]) {
         id = m["id"] as! String
@@ -39,6 +40,12 @@ struct Contact {
         notes = (m["notes"] as! [[String: Any]]).map { Note(fromMap: $0) }
         accounts = (m["accounts"] as! [[String: Any]]).map { Account(fromMap: $0) }
         groups = (m["groups"] as! [[String: Any]]).map { Group(fromMap: $0) }
+        if let birthdayString = m["birthday"] as? String {
+            let dateFormatter = ISO8601DateFormatter()
+            if let date = dateFormatter.date(from: birthdayString) {
+                birthday = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            }
+        }
     }
 
     init(fromContact c: CNContact) {
@@ -79,6 +86,8 @@ struct Contact {
             if c.isKeyAvailable(CNContactNoteKey) {
                 notes = [Note(fromContact: c)]
             }
+            print("c.bi:" ,c.birthday)
+            birthday = c.birthday
         }
         if c.isKeyAvailable(CNContactThumbnailImageDataKey) {
             thumbnail = c.thumbnailImageData
@@ -106,5 +115,11 @@ struct Contact {
         "accounts": accounts.map { $0.toMap() },
         "groups": groups.map { $0.toMap() },
     ]
+     if let birthday = birthday {
+                let dateFormatter = ISO8601DateFormatter()
+                if let date = Calendar.current.date(from: birthday) {
+                    map["birthday"] = dateFormatter.string(from: date)
+                }
+            }
     }
 }

@@ -39,7 +39,7 @@ class _FlutterContactsExampleState extends State<FlutterContactsExample> {
     return ListView.builder(
         itemCount: _contacts!.length,
         itemBuilder: (context, i) => ListTile(
-            title: Text(_contacts![i].displayName),
+            title: Text('${_contacts![i].displayName} - ${_contacts?[i].birthday}'),
             onTap: () async {
               final fullContact =
                   await FlutterContacts.getContact(_contacts![i].id);
