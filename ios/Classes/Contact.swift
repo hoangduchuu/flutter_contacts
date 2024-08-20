@@ -106,20 +106,22 @@ struct Contact {
         "photo": photo,
         "phones": phones.map { $0.toMap() },
         "emails": emails.map { $0.toMap() },
-        "addresses": addresses.map { $0.toMap() },
-        "organizations": organizations.map { $0.toMap() },
-        "websites": websites.map { $0.toMap() },
-        "socialMedias": socialMedias.map { $0.toMap() },
-        "events": events.map { $0.toMap() },
-        "notes": notes.map { $0.toMap() },
-        "accounts": accounts.map { $0.toMap() },
-        "groups": groups.map { $0.toMap() },
-    ]
-     if let birthday = birthday {
-                let dateFormatter = ISO8601DateFormatter()
-                if let date = Calendar.current.date(from: birthday) {
-                    map["birthday"] = dateFormatter.string(from: date)
+            "emails": emails.map { $0.toMap() },
+            "addresses": addresses.map { $0.toMap() },
+            "organizations": organizations.map { $0.toMap() },
+            "websites": websites.map { $0.toMap() },
+            "socialMedias": socialMedias.map { $0.toMap() },
+            "events": events.map { $0.toMap() },
+            "notes": notes.map { $0.toMap() },
+            "accounts": accounts.map { $0.toMap() },
+            "groups": groups.map { $0.toMap() },
+        ]
+         if let birthday = birthday {
+                    let dateFormatter = ISO8601DateFormatter()
+                    if let date = Calendar.current.date(from: birthday) {
+                        map["birthday"] = dateFormatter.string(from: date)
+                    }
                 }
-            }
+        return map
     }
 }
